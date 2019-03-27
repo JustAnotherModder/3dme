@@ -1,4 +1,6 @@
 # 3D /me
+## Note: this no longer says "the person", instead, it grabs the user name from ESX_identity. Will only work with one character as far.
+ 
 The /me command but it draws it in 3D (and it has log).
 
 <img src=https://imgur.com/vexru3M.png>
