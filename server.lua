@@ -1,40 +1,85 @@
--- begin Just Another Mod
-TriggerEvent('esx:getSharedObject', function(obj) ESX = obj end)
+JAM_Garage = {}
 
-function ReturnCharacterHandler(sourceID)
-	local playername = ''
-	local data = MySQL.Sync.fetchAll("SELECT * FROM characters WHERE identifier=@identifier",{['@identifier'] = sourceID})
+TriggerEvent('esx:getSharedObject', function(obj) ESX = obj end)	
+
+function JAM_Garage:GetPlayerVehicles(identifier)	
+	local playerVehicles = {}
+	local data = MySQL.Sync.fetchAll("SELECT * FROM owned_vehicles WHERE owner=@identifier",{['@identifier'] = identifier})	
 	for key,val in pairs(data) do
-		playername = val.firstname .. " " .. val.lastname
-		return playername
+		local playerVehicle = json.decode(val.vehicle)
+		table.insert(playerVehicles, {owner = val.owner, veh = val.vehicle, vehicle = playerVehicle, plate = val.plate, state = val.state})
 	end
+	return playerVehicles
 end
 
-ESX.RegisterServerCallback('ReturnCharacterName', function(source, cb)
+ESX.RegisterServerCallback('JAM_Garage:StoreVehicle', function(source, cb, vehicleProps)
+	local isFound = false
 	local xPlayer = ESX.GetPlayerFromId(source)
-	local str = ReturnCharacterHandler(xPlayer.getIdentifier())
-	cb(str)
-end)	
---- end JAM
 
-local logEnabled = true
+	if not xPlayer then return; end
 
-RegisterServerEvent('3dme:shareDisplay')
-AddEventHandler('3dme:shareDisplay', function(text)
-	TriggerClientEvent('3dme:triggerDisplay', -1, text, source)
-	if logEnabled then
-		setLog(text, source)
+	local playerVehicles = JAM_Garage:GetPlayerVehicles(xPlayer.getIdentifier())
+	local plate = vehicleProps.plate
+
+	for key,val in pairs(playerVehicles) do
+		if(plate == val.plate) then
+			local vehProps = json.encode(vehicleProps)
+			MySQL.Sync.execute("UPDATE owned_vehicles SET vehicle=@vehProps WHERE plate=@plate",{['@vehProps'] = vehProps, ['@plate'] = val.plate})
+			isFound = true
+			break
+		end
+	end
+	cb(isFound)
+end)
+
+ESX.RegisterServerCallback('JAM_Garage:GetVehicles', function(source, cb)
+	local xPlayer = ESX.GetPlayerFromId(source)
+
+	if not xPlayer then return; end
+
+	local vehicles = JAM_Garage:GetPlayerVehicles(xPlayer.getIdentifier())
+
+	cb(vehicles)
+end)
+
+RegisterNetEvent('JAM_Garage:ChangeState')
+AddEventHandler('JAM_Garage:ChangeState', function(plate, state)
+	local xPlayer = ESX.GetPlayerFromId(source)
+
+	if not xPlayer then return; end
+
+	local vehicles = JAM_Garage:GetPlayerVehicles(xPlayer.getIdentifier())
+	for key,val in pairs(vehicles) do
+		if(plate == val.plate) then
+			MySQL.Sync.execute("UPDATE owned_vehicles SET state =@state WHERE plate=@plate",{['@state'] = state , ['@plate'] = plate})
+			break
+		end		
 	end
 end)
 
-function setLog(text, source)
-	local time = os.date("%d/%m/%Y %X")
-	local name = GetPlayerName(source)
-	local identifier = GetPlayerIdentifiers(source)
-	local data = time .. ' : ' .. name .. ' - ' .. identifier[1] .. ' : ' .. text
+-- Console = dofile("Console.lua")
+function JAM_Garage.Startup()
+	
+	-- print( Console:Start() )
 
-	local content = LoadResourceFile(GetCurrentResourceName(), "log.txt")
-	local newContent = content .. '\r\n' .. data
-	SaveResourceFile(GetCurrentResourceName(), "log.txt", newContent, -1)
+	local data = MySQL.Sync.fetchAll("SELECT * FROM owned_vehicles")
+	for key,val in pairs(data) do
+	  	if not val.state
+	  	then
+	   		MySQL.Sync.fetchAll("ALTER TABLE `owned_vehicles` ADD `state` int(11) NOT NULL;")
+	  	end
+	  	return
+	end
 end
 
+-- function Console:Start()
+--   if not self then return Console:Start(); end;
+--   if self.started then return true, "Already started..."; end;
+--   self.started = true
+--   if    not Citizen or not Citizen.CreateThread then return false, "not Citizen or not Citizen.CreateThread"; end;
+--   Citizen.CreateThread(Console.ThreadUpdate)
+--   return true
+-- end
+
+RegisterNetEvent('JAM_Garage:Startup')
+AddEventHandler('JAM_Garage:Startup', JAM_Garage.Startup)
