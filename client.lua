@@ -1,4 +1,36 @@
+-- begin Just Another Mod
+function GetSharedObject(obj) ESX = obj; end
+
+local playerName = ''
+
+function MeHandler(name, args)
+    if not ESX then return; end
+
+    local text = '* ' .. playerName
+    for i = 1,#args do
+        text = text .. ' ' .. args[i]
+    end
+    text = text .. ' *'
+    TriggerServerEvent('3dme:shareDisplay', text)
+end
+
+RegisterCommand('me', MeHandler, playerName, args)
+
+function UpdateThread()
+    TriggerEvent('esx:getSharedObject', function(...) GetSharedObject(...); end);
+
+    Citizen.Wait(1000)
+
+    ESX.TriggerServerCallback('ReturnCharacterName', function(str)
+        playerName = str
+    end, source)
+end
+
+Citizen.CreateThread(function(...) UpdateThread(...); end)
+-- end JAM
+
 -- Settings
+
 local color = { r = 220, g = 220, b = 220, alpha = 255 } -- Color of the text 
 local font = 0 -- Font of the text
 local time = 7000 -- Duration of the display of the text : 1000ms = 1sec
@@ -11,15 +43,6 @@ local dropShadow = false
 
 -- Don't touch
 local nbrDisplaying = 1
-
-RegisterCommand('me', function(source, args)
-    local text = '* the person' -- edit here if you want to change the language : EN: the person / FR: la personne
-    for i = 1,#args do
-        text = text .. ' ' .. args[i]
-    end
-    text = text .. ' *'
-    TriggerServerEvent('3dme:shareDisplay', text)
-end)
 
 RegisterNetEvent('3dme:triggerDisplay')
 AddEventHandler('3dme:triggerDisplay', function(text, source)
