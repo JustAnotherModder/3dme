@@ -1,4 +1,5 @@
 # 3D /me
+- This repository has been archived and no support will be given.
 ## Note: this no longer says "the person". instead, it grabs the user name from ESX_identity.
 ## This will only work with one character, as far as I'm aware.
  
